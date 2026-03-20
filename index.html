@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>DX BET</title>
+    <style>
+        body { background-color: #050505; color: #fff; font-family: 'Inter', sans-serif; }
+        .opium-card { background: linear-gradient(145deg, #111, #080808); border: 1px solid #1a1a1a; }
+        .active-tab { border-bottom: 2px solid #fff; color: #fff; }
+    </style>
+</head>
+<body class="p-4">
+    <div class="flex justify-between items-center mb-8">
+        <div class="flex items-center gap-3">
+            <img id="avatar" class="w-10 h-10 rounded-full border border-gray-800" src="">
+            <span id="username" class="font-bold text-sm tracking-widest uppercase">USER</span>
+        </div>
+        <div onclick="contactManager()" class="bg-white text-black px-3 py-1 rounded-full text-xs font-black cursor-pointer">
+            <span id="balance">0</span> ⭐️
+        </div>
+    </div>
+
+    <div class="flex gap-6 mb-6 text-gray-500 text-xs font-bold uppercase tracking-widest">
+        <button id="tab-events" onclick="switchTab('events')" class="active-tab pb-1">События</button>
+        <button id="tab-history" onclick="switchTab('history')" class="pb-1">Ставки</button>
+    </div>
+
+    <div id="events-container" class="space-y-3">
+        </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        const API_URL = "https://your-api-link.com"; // Ссылка на твой FastAPI (например на Render/Replit)
+
+        document.getElementById('username').innerText = tg.initDataUnsafe.user.first_name;
+        document.getElementById('avatar').src = tg.initDataUnsafe.user.photo_url || 'https://via.placeholder.com/100';
+
+        async function loadData() {
+            // Загрузка баланса
+            const userRes = await fetch(`${API_URL}/api/user/${tg.initDataUnsafe.user.id}`);
+            const userData = await userRes.json();
+            document.getElementById('balance').innerText = userData.balance;
+
+            // Загрузка матчей
+            const matchRes = await fetch(`${API_URL}/api/matches`);
+            const matches = await matchRes.json();
+            const container = document.getElementById('events-container');
+            container.innerHTML = '';
+
+            matches.forEach(m => {
+                container.innerHTML += `
+                    <div class="opium-card p-4 rounded-2xl flex justify-between items-center">
+                        <div>
+                            <p class="text-[10px] text-gray-500 uppercase mb-1">${m.league}</p>
+                            <p class="text-sm font-medium">${m.teams}</p>
+                        </div>
+                        <button onclick="sendBet('${m.teams}', ${m.odds})" class="bg-gray-100 text-black px-4 py-2 rounded-xl font-bold text-sm">
+                            ${m.odds}
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function sendBet(match, odds) {
+            tg.sendData(JSON.stringify({
+                action: 'bet',
+                match: match,
+                odds: odds
+            }));
+        }
+
+        function contactManager() {
+            tg.openTelegramLink('https://t.me/your_manager_handle');
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
