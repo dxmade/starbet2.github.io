@@ -3,128 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StarBet Mini App</title>
+    <title>StarBet Live</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg-color: #0a0a0a;
-            --card-bg: #161618;
-            --accent-color: #007aff;
-            --text-main: #ffffff;
-            --text-secondary: #8e8e93;
-            --success: #34c759;
+            --bg-color: #0f0f0f;
+            --card-bg: #1a1a1c;
+            --accent: #007aff;
+            --text: #ffffff;
+            --secondary: #8e8e93;
+            --live-red: #ff3b30;
         }
 
         body {
-            font-family: -apple-system, system-ui, sans-serif;
+            font-family: -apple-system, sans-serif;
             background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 16px;
+            color: var(--text);
+            margin: 0; padding: 16px 16px 80px 16px;
+        }
+
+        .tabs {
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            position: sticky; top: 0; background: var(--bg-color); padding: 10px 0;
         }
 
-        h1 { font-size: 22px; margin-bottom: 20px; width: 100%; text-align: left; }
+        .tab {
+            flex: 1; padding: 10px; text-align: center;
+            background: var(--card-bg); border-radius: 10px;
+            font-size: 14px; font-weight: 600; color: var(--secondary);
+        }
 
-        .card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 20px;
-            width: 100%;
-            box-sizing: border-box;
+        .tab.active { background: var(--accent); color: white; }
+
+        .match-card {
+            background: var(--card-bg); border-radius: 16px;
+            padding: 16px; margin-bottom: 12px;
+            display: flex; justify-content: space-between; align-items: center;
             border: 1px solid #2c2c2e;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
-        .rating-val {
-            font-size: 32px;
-            font-weight: 800;
-            color: var(--success);
-            margin: 10px 0;
-        }
+        .team { display: flex; flex-direction: column; align-items: center; width: 40%; }
+        .score { font-size: 24px; font-weight: 800; width: 20%; text-align: center; }
+        .live-indicator { color: var(--live-red); font-size: 10px; font-weight: bold; margin-bottom: 5px; }
 
-        .label { color: var(--text-secondary); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-
-        button {
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 14px;
-            width: 100%;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        button:active { opacity: 0.8; }
-
-        #loader { color: var(--accent-color); font-weight: bold; margin-top: 50px; }
+        #loader { text-align: center; margin-top: 50px; color: var(--accent); }
     </style>
 </head>
 <body>
 
-    <h1>StarBet Statistics</h1>
-
-    <div id="content" style="display: none; width: 100%;">
-        <div class="card">
-            <div class="label">Рейтинг игрока (Live)</div>
-            <div id="player-rating" class="rating-val">0.0</div>
-            <div id="update-time" style="font-size: 12px; color: var(--text-secondary);">Обновлено только что</div>
-        </div>
-        
-        <button onclick="loadData()">Обновить данные</button>
+    <div class="tabs">
+        <div class="tab active" onclick="changeTab('live', this)">Live</div>
+        <div class="tab" onclick="changeTab('scheduled', this)">Предстоящие</div>
+        <div class="tab" onclick="changeTab('ratings', this)">Рейтинги</div>
     </div>
 
-    <div id="loader">Загрузка данных из API...</div>
+    <div id="loader">Загрузка данных...</div>
+    <div id="content"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
 
-        // Твой API Ключ
         const API_KEY = '0bc1450aaemsh5f9908516db2655p12ebf3jsnbc91931d708a';
+        const HOST = 'sportapi7.p.rapidapi.com';
 
-        async function loadData() {
+        async function fetchData(endpoint) {
             document.getElementById('loader').style.display = 'block';
-            document.getElementById('content').style.display = 'none';
+            document.getElementById('content').innerHTML = '';
 
             const options = {
                 method: 'GET',
-                headers: {
-                    'x-rapidapi-key': API_KEY,
-                    'x-rapidapi-host': 'sportapi7.p.rapidapi.com'
-                }
+                headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': HOST }
             };
 
             try {
-                // Запрос к API (из твоего скриншота)
-                const response = await fetch('https://sportapi7.p.rapidapi.com/api/v1/player/817181/unique-tournament/132/season/65360/ratings', options);
+                const response = await fetch(`https://${HOST}/api/v1/sport/football/${endpoint}`, options);
                 const data = await response.json();
-
-                if (data.rating) {
-                    document.getElementById('player-rating').innerText = data.rating;
-                } else {
-                    document.getElementById('player-rating').innerText = "Н/Д";
-                }
-
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('content').style.display = 'block';
-                document.getElementById('update-time').innerText = "Обновлено: " + new Date().toLocaleTimeString();
-
+                renderMatches(data.events || []);
             } catch (err) {
-                console.error(err);
-                alert("Ошибка при загрузке данных. Проверьте VPN.");
+                document.getElementById('content').innerHTML = '<p>Ошибка сети. Проверьте VPN.</p>';
+            } finally {
+                document.getElementById('loader').style.display = 'none';
             }
         }
 
-        // Авто-загрузка при старте
-        loadData();
+        function renderMatches(events) {
+            const container = document.getElementById('content');
+            if (events.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:gray;">Матчей не найдено</p>';
+                return;
+            }
+
+            events.slice(0, 15).forEach(event => {
+                const card = document.createElement('div');
+                card.className = 'match-card';
+                card.innerHTML = `
+                    <div class="team">
+                        <span>${event.homeTeam.shortName}</span>
+                    </div>
+                    <div class="score">
+                        ${event.status.type === 'inprogress' ? '<div class="live-indicator">LIVE</div>' : ''}
+                        ${event.homeScore.current || 0} : ${event.awayScore.current || 0}
+                    </div>
+                    <div class="team">
+                        <span>${event.awayTeam.shortName}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function changeTab(type, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            
+            if (type === 'live') fetchData('events/live');
+            else if (type === 'scheduled') fetchData('events/scheduled/2026-03-20'); // Пример даты
+            else fetchData('player/817181/unique-tournament/132/season/65360/ratings'); // Твой запрос рейтинга
+        }
+
+        // Старт с Live
+        fetchData('events/live');
     </script>
 </body>
 </html>
